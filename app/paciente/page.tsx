@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, CheckCircle, Clock, Copy, Plus, QrCode, RefreshCw, ShoppingBag, Star } from "lucide-react";
+import { Calendar, CheckCircle, Clock, Copy, MapPin, Plus, QrCode, RefreshCw, Scissors, ShoppingBag, Star } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { BarberIcon } from "@/components/app-icons";
 import { Button, Card, Empty, Input, Modal, PageHeader, Select, Skeleton, StatCard } from "@/components/system-ui";
@@ -17,7 +17,8 @@ const navItems = [
   { id: "book", label: "Agendar", icon: Plus },
   { id: "products", label: "Produtos", icon: ShoppingBag },
   { id: "appointments", label: "Meus agendamentos", icon: Clock },
-  { id: "doctors", label: "Nossos barbeiros", icon: BarberIcon },
+  { id: "address", label: "Endereço", icon: MapPin },
+  { id: "doctors", label: "Nossos barbeiros", icon: Scissors },
 ];
 
 function resolveName(value: any) {
@@ -445,6 +446,10 @@ export default function PatientPage() {
       onNavigate={(id) => {
         if (id === "doctors") {
           router.push("/cliente/medicos");
+          return;
+        }
+        if (id === "address") {
+          window.open("https://maps.app.goo.gl/aBFog7BSRxvbQS4k7", "_blank", "noopener,noreferrer");
           return;
         }
         if (id === "products") {

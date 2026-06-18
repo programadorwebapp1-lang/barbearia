@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Calendar, Edit2, KeyRound, PlugZap, Plus, RefreshCw, ShieldCheck, ShoppingBag, Users, Wallet, XCircle } from "lucide-react";
+import { BadgeCheck, Calendar, Edit2, KeyRound, PlugZap, Plus, RefreshCw, Scissors, ShieldCheck, ShoppingBag, Users, Wallet, XCircle } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { BarberIcon } from "@/components/app-icons";
 import { Button, Card, Empty, Input, Modal, PageHeader, Select, StatCard, Textarea } from "@/components/system-ui";
@@ -34,7 +34,7 @@ const PAGE_SIZE = 10;
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: Calendar },
   { id: "financeiro", label: "Financeiro", icon: Wallet },
-  { id: "doctors", label: "Barbeiros", icon: BarberIcon },
+  { id: "doctors", label: "Barbeiros", icon: Scissors },
   { id: "patients", label: "Clientes", icon: Users },
   { id: "specialties", label: "Serviços", icon: BadgeCheck },
   { id: "products", label: "Produtos", icon: ShoppingBag },

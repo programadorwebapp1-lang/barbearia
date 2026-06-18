@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Calendar, PlugZap, RefreshCw, ShoppingBag, Users, Wallet } from "lucide-react";
+import { BadgeCheck, Calendar, PlugZap, RefreshCw, Scissors, ShoppingBag, Users, Wallet } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { BarberIcon } from "@/components/app-icons";
 import { Button, Card, PageHeader } from "@/components/system-ui";
@@ -18,7 +18,7 @@ import type { FinancialAppointment, FinancialData, FinancialFilters as Financial
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: Calendar },
   { id: "financeiro", label: "Financeiro", icon: Wallet },
-  { id: "doctors", label: "Barbeiros", icon: BarberIcon },
+  { id: "doctors", label: "Barbeiros", icon: Scissors },
   { id: "patients", label: "Clientes", icon: Users },
   { id: "specialties", label: "Serviços", icon: BadgeCheck },
   { id: "products", label: "Produtos", icon: ShoppingBag },

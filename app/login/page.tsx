@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle, Scissors } from "lucide-react";
+import { AlertCircle, CheckCircle } from "lucide-react";
 import type { ButtonHTMLAttributes, FormEvent, InputHTMLAttributes } from "react";
 import { PasswordInput } from "@/components/password-input";
 
@@ -122,19 +123,29 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(212,160,23,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(15,15,15,0.08),_transparent_32%),linear-gradient(180deg,_#fffaf0_0%,_#ffffff_100%)] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-orange-500 rounded-2xl shadow-lg shadow-orange-200 mb-4">
-            <Scissors className="w-7 h-7 text-white" />
+        <div className="text-center mb-10 space-y-4">
+          <div className="mx-auto inline-flex items-center justify-center rounded-[1.75rem] bg-white/85 border border-amber-100 shadow-[0_16px_50px_rgba(0,0,0,0.08)] px-6 py-5">
+            <Image
+              src="/brand-logo-icon.png"
+              alt="Logo Carvalho Barbearia o Sistema de Gestão"
+              title="Logo Carvalho Barbearia Sistema de Gestão"
+              width={92}
+              height={92}
+              priority
+              className="h-20 w-20 object-contain"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Barbearia Prime
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">Sistema de gestão de barbearia</p>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Carvalho Barbearia 
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">Sistema de Gestão</p>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
+        <div className="bg-white/95 rounded-2xl border border-white/70 shadow-xl shadow-amber-100/30 p-8 backdrop-blur">
           <h2 className="text-lg font-semibold text-slate-900 mb-6">
             {firstAdminMode ? "Crie o primeiro administrador" : mode === "login" ? "Acesse sua conta" : "Criar conta de cliente"}
           </h2>
@@ -161,7 +172,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setMode("login")}
-                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all cursor-pointer   ${
+                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all cursor-pointer ${
                     mode === "login" ? "bg-sky-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -190,7 +201,7 @@ export default function LoginPage() {
                       type="checkbox"
                       checked={rememberEmail}
                       onChange={(e) => setRememberEmail(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                      className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
                     />
                     Lembrar meu e-mail
                   </label>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, CheckCircle, Clock, Copy, QrCode, RefreshCw, ShoppingBag, Scissors, Sparkles } from "lucide-react";
+import { Calendar, CheckCircle, Clock, Copy, MapPin, QrCode, RefreshCw, ShoppingBag, Scissors, Sparkles } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { BarberIcon } from "@/components/app-icons";
 import { Button, Card, Empty, Input, Modal, PageHeader, Skeleton, StatCard } from "@/components/system-ui";
@@ -17,7 +17,8 @@ const navItems = [
   { id: "book", label: "Agendar", icon: Scissors },
   { id: "products", label: "Produtos", icon: ShoppingBag },
   { id: "appointments", label: "Agendamentos", icon: Clock },
-  { id: "doctors", label: "Barbeiros", icon: BarberIcon },
+  { id: "address", label: "Endereço", icon: MapPin },
+  { id: "doctors", label: "Barbeiros", icon: Scissors },
 ];
 
 function formatMoney(value: number) {
@@ -159,6 +160,10 @@ export default function ClienteProdutosPage() {
         if (id === "dashboard") router.push("/cliente");
         if (id === "book") router.push("/cliente?tab=book");
         if (id === "appointments") router.push("/cliente?tab=appointments");
+        if (id === "address") {
+          window.open("https://maps.app.goo.gl/aBFog7BSRxvbQS4k7", "_blank", "noopener,noreferrer");
+          return;
+        }
         if (id === "doctors") router.push("/cliente/medicos");
         if (id === "products") router.push("/cliente/produtos");
       }}

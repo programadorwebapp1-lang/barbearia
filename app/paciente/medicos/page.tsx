@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Calendar, Scissors, ShoppingBag, Users } from "lucide-react";
+import { BadgeCheck, Calendar, MapPin, Scissors, ShoppingBag, Users } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
 import { BarberIcon } from "@/components/app-icons";
 import { Button, Card, Empty, PageHeader, Select, Skeleton, StatCard } from "@/components/system-ui";
@@ -17,7 +17,8 @@ const navItems = [
   { id: "book", label: "Agendar", icon: Scissors },
   { id: "products", label: "Produtos", icon: ShoppingBag },
   { id: "appointments", label: "Agendamentos", icon: Users },
-  { id: "doctors", label: "Barbeiros", icon: BarberIcon },
+  { id: "address", label: "Endereço", icon: MapPin },
+  { id: "doctors", label: "Barbeiros", icon: Scissors },
 ];
 
 function resolveName(value: any) {
@@ -98,6 +99,10 @@ export default function PatientDoctorsPage() {
         if (id === "book") router.push("/cliente?tab=book");
         if (id === "products") router.push("/cliente/produtos");
         if (id === "appointments") router.push("/cliente?tab=appointments");
+        if (id === "address") {
+          window.open("https://maps.app.goo.gl/aBFog7BSRxvbQS4k7", "_blank", "noopener,noreferrer");
+          return;
+        }
         if (id === "doctors") router.push("/cliente/medicos");
       }}
       onLogout={async () => {

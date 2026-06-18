@@ -1,8 +1,7 @@
-import { Calendar, RefreshCw, ShoppingBag, Users } from "lucide-react";
-import { Button, Card, Empty, PageHeader, StatCard } from "@/components/system-ui";
+import { Calendar, RefreshCw, Scissors, ShoppingBag, Users } from "lucide-react";
+import { Button, Card, Empty, StatCard } from "@/components/system-ui";
 import { PaginationBar as AdminPaginationBar } from "@/components/admin/pagination-bar";
 import { resolveBarberName, resolveClientName, resolveServiceName } from "@/components/admin/utils";
-import { BarberIcon } from "@/components/app-icons";
 
 type AnyRecord = Record<string, any>;
 
@@ -25,18 +24,25 @@ export function DashboardSection({
 }) {
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        sub="Visão geral da barbearia"
-        action={
-          <Button variant="secondary" onClick={onRefresh}>
-            <RefreshCw className="w-4 h-4" />
-            Atualizar
-          </Button>
-        }
-      />
+      <div className="mb-6 flex flex-col gap-4 rounded-[1.75rem] border border-amber-100 bg-white/85 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50 shadow-sm">
+            <Scissors className="h-7 w-7 text-amber-700" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">Carvalho Barbearia</p>
+            <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
+            <p className="text-sm text-slate-500">Visão geral da barbearia</p>
+          </div>
+        </div>
+        <Button variant="secondary" onClick={onRefresh} className="sm:self-start">
+          <RefreshCw className="w-4 h-4" />
+          Atualizar
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Barbeiros ativos" value={stats.doctors} icon={BarberIcon} color="bg-orange-50 text-orange-600" />
+        <StatCard label="Barbeiros ativos" value={stats.doctors} icon={Scissors} color="bg-orange-50 text-orange-600" />
         <StatCard label="Clientes ativos" value={stats.patients} icon={Users} color="bg-violet-50 text-violet-600" />
         <StatCard label="Serviços" value={stats.specialties} icon={ShoppingBag} color="bg-emerald-50 text-emerald-600" />
         <StatCard label="Agendamentos" value={stats.appointments} icon={Calendar} color="bg-amber-50 text-amber-600" />
