@@ -1,3 +1,6 @@
+import crypto from "node:crypto";
+import { getStoredMercadoPagoAccessToken } from "./mercadopago-connection";
+
 type MercadoPagoPixInput = {
   amount: number;
   description: string;
@@ -22,11 +25,24 @@ type MercadoPagoPixResult = {
 
 export async function createMercadoPagoPixPayment(input: MercadoPagoPixInput) {
   const accessToken = await getStoredMercadoPagoAccessToken();
+  const idempotencyKey = crypto
+    .createHash("sha256")
+    .update(
+      [
+        input.externalReference,
+        input.amount.toFixed(2),
+        input.payerEmail,
+        input.notificationUrl,
+      ].join("|")
+    )
+    .digest("hex");
+
   const response = await fetch("https://api.mercadopago.com/v1/payments", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
+      "X-Idempotency-Key": idempotencyKey,
     },
     body: JSON.stringify({
       transaction_amount: input.amount,
@@ -110,4 +126,3 @@ export async function getMercadoPagoAccount() {
 
   return data;
 }
-import { getStoredMercadoPagoAccessToken } from "./mercadopago-connection";
