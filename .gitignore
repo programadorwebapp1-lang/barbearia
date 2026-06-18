@@ -5,3 +5,5 @@ node_modules
 dist
 coverage
 *.log
+bot-clinica/
+botpro-src/
