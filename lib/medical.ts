@@ -1,4 +1,5 @@
 export type AppointmentStatus = "AGENDADA" | "CONFIRMADA" | "EM_ATENDIMENTO" | "FINALIZADA" | "CANCELADA";
+export type PaymentStatus = "pending" | "paid" | "failed" | "cancelled";
 
 export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   AGENDADA: "Agendada",
@@ -6,6 +7,13 @@ export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   EM_ATENDIMENTO: "Em atendimento",
   FINALIZADA: "Finalizada",
   CANCELADA: "Cancelada",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  pending: "Aguardando pagamento",
+  paid: "Pago",
+  failed: "Falhou",
+  cancelled: "Cancelado",
 };
 
 export const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];

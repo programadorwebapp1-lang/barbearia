@@ -2,7 +2,7 @@ import { Schema, model, models, type InferSchemaType } from "mongoose";
 
 const ScheduleSchema = new Schema(
   {
-    doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true, unique: true },
+    barberId: { type: Schema.Types.ObjectId, ref: "Barber", required: true, unique: true },
     availableDays: { type: [Number], default: [] },
     startTime: { type: String, default: "08:00" },
     endTime: { type: String, default: "18:00" },

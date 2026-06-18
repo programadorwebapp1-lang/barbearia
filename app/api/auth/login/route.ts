@@ -3,12 +3,29 @@ import { connectMongo } from "@/lib/mongodb";
 import User from "@/models/User";
 import { roleHome } from "@/lib/guards";
 import { buildAuthCookie, signSessionToken, verifyPassword } from "@/lib/auth";
+import { checkRateLimit, getRequestFingerprint } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    const rate = checkRateLimit("auth-login", getRequestFingerprint(req.headers), {
+      limit: 8,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de login. Tente novamente em alguns minutos." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rate.resetAt - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
     await connectMongo();
     const body = await req.json().catch(() => null);
 
@@ -33,8 +50,8 @@ export async function POST(req: NextRequest) {
       role: user.role,
       name: user.name,
       email: user.email,
-      doctorId: user.doctorId?.toString?.() ?? null,
-      patientId: user.patientId?.toString?.() ?? null,
+      barberId: user.barberId?.toString?.() ?? null,
+      clientId: user.clientId?.toString?.() ?? null,
     });
 
     const response = NextResponse.json({

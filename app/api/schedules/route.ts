@@ -2,33 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/guards";
 import Schedule from "@/models/Schedule";
-import Doctor from "@/models/Doctor";
+import Barber from "@/models/Doctor";
 import { isDateBlocked, isSlotBlocked, isWithinWorkingHours } from "@/lib/medical";
-import Appointment from "@/models/Appointment";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-async function resolveDoctor(req: NextRequest, sessionRole: string, doctorId?: string) {
-  if (sessionRole === "MEDICO") return doctorId;
-  return doctorId;
-}
 
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await connectMongo();
-  const doctorId = session.role === "MEDICO" ? session.doctorId : req.nextUrl.searchParams.get("doctorId");
-  if (!doctorId) return NextResponse.json({ schedule: null });
+  const barberId = session.role === "BARBEIRO" ? session.barberId : req.nextUrl.searchParams.get("barberId");
+  if (!barberId) return NextResponse.json({ schedule: null });
 
-  const schedule = await Schedule.findOne({ doctorId }).lean();
+  const schedule = await Schedule.findOne({ barberId }).lean();
   return NextResponse.json({ schedule });
 }
 
 export async function PUT(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session || session.role !== "MEDICO") {
+  if (!session || session.role !== "BARBEIRO") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -36,13 +30,13 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
 
-  const doctor = await Doctor.findById(session.doctorId);
-  if (!doctor) return NextResponse.json({ error: "Médico não encontrado." }, { status: 404 });
+  const barber = await Barber.findById(session.barberId);
+  if (!barber) return NextResponse.json({ error: "Barbeiro não encontrado." }, { status: 404 });
 
   const schedule = await Schedule.findOneAndUpdate(
-    { doctorId: doctor._id },
+    { barberId: barber._id },
     {
-      doctorId: doctor._id,
+      barberId: barber._id,
       availableDays: Array.isArray(body.availableDays) ? body.availableDays : [],
       startTime: body.startTime || "08:00",
       endTime: body.endTime || "18:00",
@@ -61,7 +55,7 @@ export async function PUT(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session || session.role !== "MEDICO") {
+  if (!session || session.role !== "BARBEIRO") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -71,10 +65,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Tipo e data são obrigatórios." }, { status: 400 });
   }
 
-  let schedule = await Schedule.findOne({ doctorId: session.doctorId });
+  let schedule = await Schedule.findOne({ barberId: session.barberId });
   if (!schedule) {
     schedule = await Schedule.create({
-      doctorId: session.doctorId,
+      barberId: session.barberId,
       availableDays: [],
       startTime: "08:00",
       endTime: "18:00",

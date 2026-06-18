@@ -30,7 +30,7 @@ export function PasswordInput({ label, value, onChange, placeholder, required, c
         />
         <button
           type="button"
-          className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700"
+          className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700 cursor-pointer"
           onClick={() => setVisible((curr) => !curr)}
           aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
         >

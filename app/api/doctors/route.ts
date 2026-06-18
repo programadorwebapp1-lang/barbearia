@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/guards";
-import Doctor from "@/models/Doctor";
+import Barber from "@/models/Doctor";
 import Schedule from "@/models/Schedule";
 import User from "@/models/User";
 import { hashPassword } from "@/lib/auth";
 import { deleteImageFromCloudinary, uploadImageToCloudinary, validateImageFile } from "@/lib/cloudinary";
 import { purgeLegacyDoctorPhotoUrls } from "@/lib/doctor-media";
+import { getCatalogCache, invalidateCatalogCache, setCatalogCache } from "@/lib/catalog-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DOCTOR_IMAGE_FOLDER = "consultorio/medicos";
+const BARBER_IMAGE_FOLDER = "barbearia/barbeiros";
 
 function getBodyValue(body: FormData | Record<string, unknown> | null, key: string) {
   if (!body) return undefined;
@@ -21,10 +22,7 @@ function getBodyValue(body: FormData | Record<string, unknown> | null, key: stri
 
 async function readPayload(req: NextRequest) {
   const contentType = req.headers.get("content-type") || "";
-  if (contentType.includes("multipart/form-data")) {
-    return req.formData();
-  }
-
+  if (contentType.includes("multipart/form-data")) return req.formData();
   return req.json().catch(() => null);
 }
 
@@ -33,29 +31,31 @@ async function resolvePhoto(body: FormData | Record<string, unknown> | null, pre
   const photoEntry = getBodyValue(body, "photo");
 
   if (removePhoto) {
-    if (previousPhotoUrl) {
-      await deleteImageFromCloudinary(previousPhotoUrl);
-    }
+    if (previousPhotoUrl) await deleteImageFromCloudinary(previousPhotoUrl);
     return "";
   }
 
   if (photoEntry instanceof File && photoEntry.size > 0) {
     validateImageFile(photoEntry);
-    const uploaded = await uploadImageToCloudinary(photoEntry, DOCTOR_IMAGE_FOLDER);
-    if (previousPhotoUrl) {
-      await deleteImageFromCloudinary(previousPhotoUrl);
-    }
+    const uploaded = await uploadImageToCloudinary(photoEntry, BARBER_IMAGE_FOLDER);
+    if (previousPhotoUrl) await deleteImageFromCloudinary(previousPhotoUrl);
     return uploaded.secureUrl;
   }
 
-  if (previousPhotoUrl.startsWith("data:")) {
-    return "";
-  }
-
+  if (previousPhotoUrl.startsWith("data:")) return "";
   return previousPhotoUrl;
 }
 
-function parseAvailableDays(value: string) {
+function parseNumberArray(value: string) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.map((item) => Number(item)).filter((item) => !Number.isNaN(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseServicesIds(value: string) {
   try {
     const parsed = JSON.parse(value || "[]");
     return Array.isArray(parsed) ? parsed : [];
@@ -72,8 +72,15 @@ export async function GET(req: NextRequest) {
 
   await connectMongo();
   await purgeLegacyDoctorPhotoUrls();
-  const doctors = await Doctor.find().populate("specialtyId").lean();
-  return NextResponse.json({ doctors });
+  const cacheKey = "barbers:admin:list";
+  const cached = getCatalogCache<{ barbers: any[] }>(cacheKey);
+  if (cached) {
+    return NextResponse.json({ barbers: cached.barbers, doctors: cached.barbers });
+  }
+
+  const barbers = await Barber.find().select("name email phone servicesIds photoUrl bio status active createdAt").sort({ name: 1 }).lean();
+  setCatalogCache(cacheKey, { barbers }, 60_000);
+  return NextResponse.json({ barbers, doctors: barbers });
 }
 
 export async function POST(req: NextRequest) {
@@ -85,24 +92,24 @@ export async function POST(req: NextRequest) {
   await connectMongo();
   const body = await readPayload(req);
   const name = String(getBodyValue(body, "name") || "").trim();
-  const crm = String(getBodyValue(body, "crm") || "").trim();
-  const specialtyId = String(getBodyValue(body, "specialtyId") || "").trim();
   const email = String(getBodyValue(body, "email") || "").trim().toLowerCase();
   const password = String(getBodyValue(body, "password") || "");
   const phone = String(getBodyValue(body, "phone") || "").trim();
   const bio = String(getBodyValue(body, "bio") || "");
   const active = String(getBodyValue(body, "active") ?? "true") !== "false";
-  const availableDaysRaw = String(getBodyValue(body, "availableDays") || "[]");
+  const servicesIdsRaw = String(getBodyValue(body, "servicesIds") || getBodyValue(body, "specialtyId") || "[]");
+  const fallbackServiceId = String(getBodyValue(body, "specialtyId") || "").trim();
   const startTime = String(getBodyValue(body, "startTime") || "08:00");
   const endTime = String(getBodyValue(body, "endTime") || "18:00");
   const slotDuration = Number(getBodyValue(body, "slotDuration") || 30);
+  const availableDays = parseNumberArray(String(getBodyValue(body, "availableDays") || "[]"));
 
-  if (!name || !crm || !specialtyId || !email) {
-    return NextResponse.json({ error: "Nome, CRM, e-mail e especialidade são obrigatórios." }, { status: 400 });
+  if (!name || !email) {
+    return NextResponse.json({ error: "Nome e e-mail são obrigatórios." }, { status: 400 });
   }
 
   if (!password) {
-    return NextResponse.json({ error: "Senha do médico é obrigatória." }, { status: 400 });
+    return NextResponse.json({ error: "Senha do barbeiro é obrigatória." }, { status: 400 });
   }
 
   const existingUser = await User.findOne({ email });
@@ -114,18 +121,17 @@ export async function POST(req: NextRequest) {
   try {
     photoUrl = await resolvePhoto(body);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Nao foi possivel processar a foto." }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível processar a foto." }, { status: 400 });
   }
 
   const passwordHash = await hashPassword(password);
 
   try {
-    const doctor = await Doctor.create({
+    const barber = await Barber.create({
       name,
       email,
       phone,
-      crm,
-      specialtyId,
+      servicesIds: parseServicesIds(servicesIdsRaw).length > 0 ? parseServicesIds(servicesIdsRaw) : fallbackServiceId ? [fallbackServiceId] : [],
       photoUrl,
       bio,
       status: active ? "ATIVO" : "INATIVO",
@@ -136,19 +142,19 @@ export async function POST(req: NextRequest) {
       name,
       email,
       passwordHash,
-      role: "MEDICO",
-      doctorId: doctor._id,
+      role: "BARBEIRO",
+      barberId: barber._id,
     });
 
-    doctor.userId = user._id;
-    doctor.email = user.email;
-    await doctor.save();
+    barber.userId = user._id;
+    barber.email = user.email;
+    await barber.save();
 
     await Schedule.findOneAndUpdate(
-      { doctorId: doctor._id },
+      { barberId: barber._id },
       {
-        doctorId: doctor._id,
-        availableDays: parseAvailableDays(availableDaysRaw),
+        barberId: barber._id,
+        availableDays,
         startTime,
         endTime,
         slotDuration,
@@ -158,12 +164,11 @@ export async function POST(req: NextRequest) {
       { upsert: true, new: true }
     );
 
-    return NextResponse.json({ doctor, user }, { status: 201 });
+    invalidateCatalogCache();
+    return NextResponse.json({ barber, doctor: barber, user }, { status: 201 });
   } catch (error) {
-    if (photoUrl) {
-      await deleteImageFromCloudinary(photoUrl);
-    }
-    const message = error instanceof Error ? error.message : "Nao foi possivel cadastrar o medico.";
+    if (photoUrl) await deleteImageFromCloudinary(photoUrl);
+    const message = error instanceof Error ? error.message : "Não foi possível cadastrar o barbeiro.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

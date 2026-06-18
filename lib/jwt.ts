@@ -1,14 +1,14 @@
 import { SignJWT, jwtVerify } from "jose";
 
-export type SessionRole = "ADMIN" | "MEDICO" | "PACIENTE";
+export type SessionRole = "ADMIN" | "BARBEIRO" | "CLIENTE";
 
 export type SessionUser = {
   id: string;
   role: SessionRole;
   name: string;
   email: string;
-  doctorId?: string | null;
-  patientId?: string | null;
+  barberId?: string | null;
+  clientId?: string | null;
 };
 
 const COOKIE_NAME = "sgm_token";
@@ -25,8 +25,8 @@ export async function signSessionToken(user: SessionUser) {
     role: user.role,
     name: user.name,
     email: user.email,
-    doctorId: user.doctorId ?? null,
-    patientId: user.patientId ?? null,
+    barberId: user.barberId ?? null,
+    clientId: user.clientId ?? null,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
@@ -48,8 +48,8 @@ export async function verifySessionToken(token: string) {
     role,
     name: payload.name,
     email: payload.email,
-    doctorId: typeof payload.doctorId === "string" ? payload.doctorId : null,
-    patientId: typeof payload.patientId === "string" ? payload.patientId : null,
+    barberId: typeof payload.barberId === "string" ? payload.barberId : null,
+    clientId: typeof payload.clientId === "string" ? payload.clientId : null,
   } as SessionUser;
 }
 

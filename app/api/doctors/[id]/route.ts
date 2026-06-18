@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/guards";
-import Doctor from "@/models/Doctor";
+import Barber from "@/models/Doctor";
 import Schedule from "@/models/Schedule";
-import Appointment from "@/models/Appointment";
+import Booking from "@/models/Appointment";
 import User from "@/models/User";
 import { deleteImageFromCloudinary, uploadImageToCloudinary, validateImageFile } from "@/lib/cloudinary";
+import { invalidateCatalogCache } from "@/lib/catalog-cache";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DOCTOR_IMAGE_FOLDER = "consultorio/medicos";
+const BARBER_IMAGE_FOLDER = "barbearia/barbeiros";
 
 function getBodyValue(body: FormData | Record<string, unknown> | null, key: string) {
   if (!body) return undefined;
@@ -20,10 +21,7 @@ function getBodyValue(body: FormData | Record<string, unknown> | null, key: stri
 
 async function readPayload(req: NextRequest) {
   const contentType = req.headers.get("content-type") || "";
-  if (contentType.includes("multipart/form-data")) {
-    return req.formData();
-  }
-
+  if (contentType.includes("multipart/form-data")) return req.formData();
   return req.json().catch(() => null);
 }
 
@@ -32,25 +30,18 @@ async function resolvePhoto(body: FormData | Record<string, unknown> | null, pre
   const photoEntry = getBodyValue(body, "photo");
 
   if (removePhoto) {
-    if (previousPhotoUrl) {
-      await deleteImageFromCloudinary(previousPhotoUrl);
-    }
+    if (previousPhotoUrl) await deleteImageFromCloudinary(previousPhotoUrl);
     return "";
   }
 
   if (photoEntry instanceof File && photoEntry.size > 0) {
     validateImageFile(photoEntry);
-    const uploaded = await uploadImageToCloudinary(photoEntry, DOCTOR_IMAGE_FOLDER);
-    if (previousPhotoUrl) {
-      await deleteImageFromCloudinary(previousPhotoUrl);
-    }
+    const uploaded = await uploadImageToCloudinary(photoEntry, BARBER_IMAGE_FOLDER);
+    if (previousPhotoUrl) await deleteImageFromCloudinary(previousPhotoUrl);
     return uploaded.secureUrl;
   }
 
-  if (previousPhotoUrl.startsWith("data:")) {
-    return "";
-  }
-
+  if (previousPhotoUrl.startsWith("data:")) return "";
   return previousPhotoUrl;
 }
 
@@ -58,17 +49,17 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   const session = await getSessionUser(req);
   const { id } = context.params;
 
-  if (!session || (session.role !== "ADMIN" && !(session.role === "MEDICO" && session.doctorId === id))) {
+  if (!session || (session.role !== "ADMIN" && !(session.role === "BARBEIRO" && session.barberId === id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await readPayload(req);
-  if (!body) return NextResponse.json({ error: "Payload invalido." }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
 
   await connectMongo();
-  const doctorBeforeUpdate = await Doctor.findById(id).lean();
-  if (!doctorBeforeUpdate) {
-    return NextResponse.json({ error: "Medico nao encontrado." }, { status: 404 });
+  const barberBeforeUpdate = await Barber.findById(id).lean();
+  if (!barberBeforeUpdate) {
+    return NextResponse.json({ error: "Barbeiro não encontrado." }, { status: 404 });
   }
 
   const updatePayload: Record<string, unknown> = {};
@@ -80,9 +71,14 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   if (hasField("name")) updatePayload.name = String(getBodyValue(body, "name") || "").trim();
   if (hasField("phone")) updatePayload.phone = String(getBodyValue(body, "phone") || "").trim();
   if (hasField("bio")) updatePayload.bio = String(getBodyValue(body, "bio") || "");
+  if (hasField("servicesIds")) {
+    try {
+      updatePayload.servicesIds = JSON.parse(String(getBodyValue(body, "servicesIds") || "[]"));
+    } catch {
+      updatePayload.servicesIds = [];
+    }
+  }
   if (session.role === "ADMIN") {
-    if (hasField("crm")) updatePayload.crm = String(getBodyValue(body, "crm") || "").trim();
-    if (hasField("specialtyId")) updatePayload.specialtyId = String(getBodyValue(body, "specialtyId") || "").trim();
     if (hasField("email")) updatePayload.email = String(getBodyValue(body, "email") || "").trim().toLowerCase();
     if (hasField("active")) {
       const active = String(getBodyValue(body, "active") ?? "true") !== "false";
@@ -97,19 +93,19 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   }
 
   try {
-    const nextPhotoUrl = await resolvePhoto(body, String(doctorBeforeUpdate.photoUrl || ""));
+    const nextPhotoUrl = await resolvePhoto(body, String(barberBeforeUpdate.photoUrl || ""));
     updatePayload.photoUrl = nextPhotoUrl;
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Nao foi possivel processar a foto." }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível processar a foto." }, { status: 400 });
   }
 
-  const doctor = await Doctor.findByIdAndUpdate(id, updatePayload, { new: true });
-  if (!doctor) return NextResponse.json({ error: "Medico nao encontrado." }, { status: 404 });
+  const barber = await Barber.findByIdAndUpdate(id, updatePayload, { new: true });
+  if (!barber) return NextResponse.json({ error: "Barbeiro não encontrado." }, { status: 404 });
 
-  if (doctor.userId) {
-    await User.findByIdAndUpdate(doctor.userId, {
-      name: doctor.name,
-      email: doctor.email,
+  if (barber.userId) {
+    await User.findByIdAndUpdate(barber.userId, {
+      name: barber.name,
+      email: barber.email,
     });
   }
 
@@ -127,11 +123,12 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
         : schedulePayloadRaw;
 
     if (schedule) {
-      await Schedule.findOneAndUpdate({ doctorId: doctor._id }, { doctorId: doctor._id, ...schedule }, { upsert: true, new: true });
+      await Schedule.findOneAndUpdate({ barberId: barber._id }, { barberId: barber._id, ...schedule }, { upsert: true, new: true });
     }
   }
 
-  return NextResponse.json({ doctor });
+  invalidateCatalogCache();
+  return NextResponse.json({ barber, doctor: barber });
 }
 
 export async function DELETE(req: NextRequest, context: { params: { id: string } }) {
@@ -142,14 +139,16 @@ export async function DELETE(req: NextRequest, context: { params: { id: string }
 
   const { id } = context.params;
   await connectMongo();
-  const hasAppointments = await Appointment.exists({ doctorId: id });
-  const doctor = await Doctor.findByIdAndUpdate(id, { active: false, status: "INATIVO" }, { new: true });
-  if (!doctor) return NextResponse.json({ error: "Medico nao encontrado." }, { status: 404 });
+  const hasBookings = await Booking.exists({ barberId: id });
+  const barber = await Barber.findByIdAndUpdate(id, { active: false, status: "INATIVO" }, { new: true });
+  if (!barber) return NextResponse.json({ error: "Barbeiro não encontrado." }, { status: 404 });
 
+  invalidateCatalogCache();
   return NextResponse.json({
     ok: true,
     softDeleted: true,
-    linkedAppointments: Boolean(hasAppointments),
-    doctor,
+    linkedAppointments: Boolean(hasBookings),
+    barber,
+    doctor: barber,
   });
 }

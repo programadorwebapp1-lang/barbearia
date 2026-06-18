@@ -1,13 +1,12 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-const DoctorSchema = new Schema(
+const BarberSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, default: "" },
-    crm: { type: String, required: true, trim: true, unique: true },
-    specialtyId: { type: Schema.Types.ObjectId, ref: "Specialty", required: true },
+    servicesIds: { type: [Schema.Types.ObjectId], ref: "Service", default: [] },
     photoUrl: { type: String, default: "" },
     bio: { type: String, default: "" },
     status: { type: String, enum: ["ATIVO", "INATIVO"], default: "ATIVO" },
@@ -16,6 +15,10 @@ const DoctorSchema = new Schema(
   { timestamps: true }
 );
 
-export type Doctor = InferSchemaType<typeof DoctorSchema>;
+BarberSchema.index({ active: 1, status: 1 });
+BarberSchema.index({ servicesIds: 1 });
+BarberSchema.index({ email: 1 });
 
-export default models.Doctor || model("Doctor", DoctorSchema);
+export type Barber = InferSchemaType<typeof BarberSchema>;
+
+export default models.Barber || model("Barber", BarberSchema);

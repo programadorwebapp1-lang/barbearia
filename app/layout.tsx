@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sistema de Gestão Médico",
-  description: "Sistema de consultório médico com Next.js, MongoDB e autenticação por perfil.",
+  title: "Sistema de Barbearia",
+  description: "Sistema de barbearia com agendamento, serviços pagos e autenticação por perfil.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

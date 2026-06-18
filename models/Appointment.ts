@@ -1,10 +1,11 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-const AppointmentSchema = new Schema(
+const BookingSchema = new Schema(
   {
-    doctorId: { type: Schema.Types.ObjectId, ref: "Doctor", required: true },
-    patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true },
-    specialtyId: { type: Schema.Types.ObjectId, ref: "Specialty", required: true },
+    barberId: { type: Schema.Types.ObjectId, ref: "Barber", required: true },
+    clientId: { type: Schema.Types.ObjectId, ref: "Client", required: true },
+    serviceId: { type: Schema.Types.ObjectId, ref: "Service", required: true },
+    barbershopId: { type: Schema.Types.ObjectId, ref: "Barbershop", default: null },
     date: { type: String, required: true },
     time: { type: String, required: true },
     status: {
@@ -12,16 +13,38 @@ const AppointmentSchema = new Schema(
       enum: ["AGENDADA", "CONFIRMADA", "EM_ATENDIMENTO", "FINALIZADA", "CANCELADA"],
       default: "AGENDADA",
     },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "failed", "cancelled"],
+      default: "pending",
+    },
+    paymentId: { type: Schema.Types.ObjectId, ref: "Payment", default: null },
     notes: { type: String, default: "" },
     rescheduledFrom: {
-      appointmentId: { type: Schema.Types.ObjectId, ref: "Appointment", default: null },
+      appointmentId: { type: Schema.Types.ObjectId, ref: "Booking", default: null },
       date: { type: String, default: null },
       time: { type: String, default: null },
     },
+    reminderSentAt: { type: Date, default: null },
+    reminderLastError: { type: String, default: null },
+    reminderPayloadSent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-export type Appointment = InferSchemaType<typeof AppointmentSchema>;
+BookingSchema.index(
+  { barberId: 1, date: 1, time: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["AGENDADA", "CONFIRMADA", "EM_ATENDIMENTO", "FINALIZADA"] },
+    },
+  }
+);
+BookingSchema.index({ barberId: 1, date: 1 });
+BookingSchema.index({ clientId: 1, date: -1 });
+BookingSchema.index({ date: 1, status: 1 });
 
-export default models.Appointment || model("Appointment", AppointmentSchema);
+export type Booking = InferSchemaType<typeof BookingSchema>;
+
+export default models.Booking || model("Booking", BookingSchema);

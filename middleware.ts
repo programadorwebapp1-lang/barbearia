@@ -4,7 +4,7 @@ import { verifySessionToken, type SessionRole } from "./lib/jwt";
 const COOKIE_NAME = "sgm_token";
 
 function roleHome(role: SessionRole) {
-  return role === "ADMIN" ? "/admin" : role === "MEDICO" ? "/medico" : "/paciente";
+  return role === "ADMIN" ? "/admin" : role === "BARBEIRO" ? "/barbeiro" : "/cliente";
 }
 
 async function readSession(req: NextRequest) {
@@ -53,11 +53,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
 
-  if (pathname.startsWith("/medico") && session.role !== "MEDICO") {
+  if (pathname.startsWith("/barbeiro") && session.role !== "BARBEIRO") {
     return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
 
-  if (pathname.startsWith("/paciente") && session.role !== "PACIENTE") {
+  if (pathname.startsWith("/cliente") && session.role !== "CLIENTE") {
     return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
 
@@ -65,5 +65,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/admin/:path*", "/medico/:path*", "/paciente/:path*", "/api/:path*"],
+  matcher: ["/", "/login", "/admin/:path*", "/barbeiro/:path*", "/cliente/:path*", "/medico/:path*", "/paciente/:path*", "/api/:path*"],
 };

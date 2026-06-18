@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectMongo, removeLegacyPatientCpfIndex } from "@/lib/mongodb";
+import { connectMongo } from "@/lib/mongodb";
 import User from "@/models/User";
-import Patient from "@/models/Patient";
+import Client from "@/models/Patient";
 import { hashPassword, signSessionToken, buildAuthCookie } from "@/lib/auth";
 import { roleHome } from "@/lib/guards";
+import { checkRateLimit, getRequestFingerprint } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function buildPatientName(email: string) {
-  const localPart = email.split("@")[0] || "Paciente";
+function buildClientName(email: string) {
+  const localPart = email.split("@")[0] || "Cliente";
   return localPart
     .replace(/[._-]+/g, " ")
     .replace(/\s+/g, " ")
@@ -19,8 +20,23 @@ function buildPatientName(email: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const rate = checkRateLimit("auth-register", getRequestFingerprint(req.headers), {
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de cadastro. Tente novamente mais tarde." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rate.resetAt - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
     await connectMongo();
-    await removeLegacyPatientCpfIndex();
     const existingUsers = await User.countDocuments();
     const body = await req.json().catch(() => null);
 
@@ -31,7 +47,7 @@ export async function POST(req: NextRequest) {
     const email = String(body.email || "").toLowerCase().trim();
     const password = String(body.password || "");
     const phone = String(body.phone || "").trim();
-    const name = String(body.name || "").trim() || buildPatientName(email);
+    const name = String(body.name || "").trim() || buildClientName(email);
 
     if (existingUsers === 0) {
       if (body.role !== "ADMIN") {
@@ -62,8 +78,8 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    if (body.role !== "PACIENTE") {
-      return NextResponse.json({ error: "Cadastro público disponível apenas para pacientes." }, { status: 403 });
+    if (body.role !== "CLIENTE" && body.role !== "PACIENTE") {
+      return NextResponse.json({ error: "Cadastro público disponível apenas para clientes." }, { status: 403 });
     }
 
     if (!body.email || !body.phone || !body.password) {
@@ -76,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await hashPassword(password);
-    const patient = await Patient.create({
+    const client = await Client.create({
       name,
       email,
       phone,
@@ -88,22 +104,22 @@ export async function POST(req: NextRequest) {
       name,
       email,
       passwordHash,
-      role: "PACIENTE",
-      patientId: patient._id,
+      role: "CLIENTE",
+      clientId: client._id,
     });
 
-    patient.userId = user._id;
-    await patient.save();
+    client.userId = user._id;
+    await client.save();
 
     const token = await signSessionToken({
       id: user._id.toString(),
-      role: "PACIENTE",
+      role: "CLIENTE",
       name: user.name,
       email: user.email,
-      patientId: patient._id.toString(),
+      clientId: client._id.toString(),
     });
 
-    const response = NextResponse.json({ ok: true, redirectTo: roleHome("PACIENTE") });
+    const response = NextResponse.json({ ok: true, redirectTo: roleHome("CLIENTE") });
     response.cookies.set(buildAuthCookie(token));
     return response;
   } catch (error) {

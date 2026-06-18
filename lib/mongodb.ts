@@ -22,7 +22,7 @@ export async function connectDB() {
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(mongoUri, {
-      dbName: "consultorio_medico",
+      dbName: "barbearia",
     });
   }
 

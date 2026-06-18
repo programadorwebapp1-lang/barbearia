@@ -1,21 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, Eye, EyeOff, FileText, LockKeyhole, RefreshCw, Stethoscope } from "lucide-react";
+import { Calendar, Clock, Eye, EyeOff, FileText, LockKeyhole, RefreshCw } from "lucide-react";
 import { RoleShell } from "@/components/role-shell";
-import { Button, Card, Empty, Input, Modal, PageHeader, Select, StatCard, Textarea } from "@/components/system-ui";
+import { BarberIcon } from "@/components/app-icons";
+import { Button, Card, Empty, Input, Modal, PageHeader, Select, Skeleton, StatCard, Textarea } from "@/components/system-ui";
 import { DAY_NAMES } from "@/lib/medical";
 import { PhotoPicker } from "@/components/photo-picker";
 import { fireSwal } from "@/lib/swal";
 
 type AnyRecord = Record<string, any>;
 
+const APPOINTMENTS_PAGE_SIZE = 10;
+
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: Calendar },
-  { id: "appointments", label: "Consultas", icon: Calendar },
+  { id: "appointments", label: "Agendamentos", icon: Calendar },
   { id: "schedule", label: "Agenda", icon: Clock },
-  { id: "profile", label: "Perfil", icon: Stethoscope },
+  { id: "profile", label: "Perfil", icon: BarberIcon },
 ];
 
 function resolveName(value: any) {
@@ -33,6 +36,15 @@ export default function DoctorPage() {
   const [active, setActive] = useState("dashboard");
   const [data, setData] = useState<AnyRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appointmentsData, setAppointmentsData] = useState<AnyRecord[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [appointmentsMeta, setAppointmentsMeta] = useState({
+    page: 1,
+    limit: APPOINTMENTS_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+  });
   const [message, setMessage] = useState("");
   const [notesModal, setNotesModal] = useState<AnyRecord | null>(null);
   const [notes, setNotes] = useState("");
@@ -62,38 +74,67 @@ export default function DoctorPage() {
 
   async function loadData() {
     setLoading(true);
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
-    if (response.status === 401) {
-      router.replace("/login");
-      return;
+    try {
+      const response = await fetch("/api/dashboard", { cache: "no-store" });
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+      const json = await response.json();
+      setData(json);
+      const schedule = json.schedule || {};
+      const doctor = json.doctor || {};
+      setProfileForm({
+        name: doctor.name || "",
+        phone: doctor.phone || "",
+        bio: doctor.bio || "",
+        photoUrl: doctor.photoUrl || "",
+        photoFile: null,
+        removePhoto: false,
+      });
+      setScheduleForm((curr) => ({
+        ...curr,
+        availableDays: schedule.availableDays || [],
+        startTime: schedule.startTime || "08:00",
+        endTime: schedule.endTime || "18:00",
+        slotDuration: schedule.slotDuration || 30,
+        lunchStart: schedule.lunchStart || "",
+        lunchEnd: schedule.lunchEnd || "",
+      }));
+    } finally {
+      setLoading(false);
     }
-    const json = await response.json();
-    setData(json);
-    const schedule = json.schedule || {};
-    const doctor = json.doctor || {};
-    setProfileForm({
-      name: doctor.name || "",
-      phone: doctor.phone || "",
-      bio: doctor.bio || "",
-      photoUrl: doctor.photoUrl || "",
-      photoFile: null,
-      removePhoto: false,
-    });
-    setScheduleForm((curr) => ({
-      ...curr,
-      availableDays: schedule.availableDays || [],
-      startTime: schedule.startTime || "08:00",
-      endTime: schedule.endTime || "18:00",
-      slotDuration: schedule.slotDuration || 30,
-      lunchStart: schedule.lunchStart || "",
-      lunchEnd: schedule.lunchEnd || "",
-    }));
-    setLoading(false);
   }
 
   useEffect(() => {
     loadData();
   }, []);
+
+  async function loadAppointments(page = appointmentsPage) {
+    setAppointmentsLoading(true);
+    try {
+      const response = await fetch(`/api/appointments?page=${page}&limit=${APPOINTMENTS_PAGE_SIZE}`, {
+        cache: "no-store",
+      });
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+      const json = await response.json();
+      setAppointmentsData(json.appointments || json.bookings || []);
+      setAppointmentsMeta(
+        json.meta || {
+          page,
+          limit: APPOINTMENTS_PAGE_SIZE,
+          total: 0,
+          totalPages: 1,
+        }
+      );
+      setAppointmentsPage(page);
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  }
 
   async function request(path: string, options: RequestInit = {}) {
     setMessage("");
@@ -119,14 +160,21 @@ export default function DoctorPage() {
       text: "Alteracao salva com sucesso.",
     });
     await loadData();
+    if (active === "appointments") {
+      await loadAppointments(appointmentsPage);
+    }
     return json;
   }
 
   const appointments = data?.appointments || [];
-  const today = useMemo(() => {
-    const day = new Date().toISOString().split("T")[0];
-    return appointments.filter((item: AnyRecord) => item.date === day);
-  }, [appointments]);
+  const today = appointments;
+  const totalAppointments = Number(data?.summaryCounts?.bookings ?? appointments.length ?? 0);
+  const todayAppointments = Number(data?.summaryCounts?.todayBookings ?? appointments.length ?? 0);
+
+  useEffect(() => {
+    if (active !== "appointments") return;
+    loadAppointments(1);
+  }, [active]);
 
   async function saveSchedule() {
     await request("/api/schedules", {
@@ -247,8 +295,8 @@ export default function DoctorPage() {
 
   return (
     <RoleShell
-      userName={data?.user?.name || "Medico"}
-      roleLabel="Medico"
+      userName={data?.user?.name || "Barbeiro"}
+      roleLabel="Barbeiro"
       navItems={navItems}
       active={active}
       onNavigate={setActive}
@@ -258,7 +306,49 @@ export default function DoctorPage() {
       }}
     >
       {loading ? (
-        <Card className="p-8 text-sm text-slate-500">Carregando agenda real...</Card>
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-3">
+              <Skeleton className="h-7 w-56" />
+              <Skeleton className="h-4 w-80" />
+            </div>
+            <Skeleton className="h-10 w-28" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <Card className="p-5">
+              <Skeleton className="h-10 w-10 mb-4" />
+              <Skeleton className="h-8 w-20 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </Card>
+            <Card className="p-5">
+              <Skeleton className="h-10 w-10 mb-4" />
+              <Skeleton className="h-8 w-20 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </Card>
+            <Card className="p-5">
+              <Skeleton className="h-10 w-10 mb-4" />
+              <Skeleton className="h-8 w-20 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </Card>
+          </div>
+          <Card>
+            <div className="px-5 py-4 border-b border-slate-50">
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <div className="divide-y divide-slate-50">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="px-5 py-4 flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-9 w-44" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       ) : (
         <>
           {message && <div className="mb-4 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{message}</div>}
@@ -266,8 +356,8 @@ export default function DoctorPage() {
           {active === "dashboard" && (
             <div>
               <PageHeader
-                title={`Ola, ${data?.user?.name || "Medico"}`}
-                sub="Agenda e consultas do medico autenticado"
+                title={`Olá, ${data?.user?.name || "Barbeiro"}`}
+                sub="Agenda e agendamentos do barbeiro autenticado"
                 action={
                   <Button variant="secondary" onClick={loadData}>
                     <RefreshCw className="w-4 h-4" />
@@ -276,17 +366,17 @@ export default function DoctorPage() {
                 }
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-                <StatCard label="Consultas hoje" value={today.length} icon={Calendar} color="bg-sky-50 text-sky-600" />
-                <StatCard label="Consultas totais" value={appointments.length} icon={Stethoscope} color="bg-violet-50 text-violet-600" />
-                <StatCard label="Agenda configurada" value={data?.schedule ? "Sim" : "Nao"} icon={Clock} color="bg-emerald-50 text-emerald-600" />
+                <StatCard label="Agendamentos hoje" value={todayAppointments} icon={Calendar} color="bg-orange-50 text-orange-600" />
+                <StatCard label="Agendamentos totais" value={totalAppointments} icon={BarberIcon} color="bg-violet-50 text-violet-600" />
+                <StatCard label="Agenda configurada" value={data?.schedule ? "Sim" : "Não"} icon={Clock} color="bg-emerald-50 text-emerald-600" />
               </div>
               <Card>
                 <div className="px-5 py-4 border-b border-slate-50">
-                  <h2 className="font-semibold text-slate-800">Consultas de hoje</h2>
+                  <h2 className="font-semibold text-slate-800">Agendamentos de hoje</h2>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {today.length === 0 ? (
-                    <Empty label="Nenhuma consulta agendada para hoje." />
+                    <Empty label="Nenhum agendamento para hoje." />
                   ) : (
                     today.map((item: AnyRecord) => (
                       <div key={item._id} className="px-5 py-3.5 flex flex-wrap items-center gap-4">
@@ -320,14 +410,16 @@ export default function DoctorPage() {
 
           {active === "appointments" && (
             <div>
-              <PageHeader title="Consultas" sub="Historico, status e observacoes clinicas" />
+              <PageHeader title="Agendamentos" sub="Histórico, status e observações do atendimento" />
               <div className="space-y-3">
-                {appointments.length === 0 ? (
+                {appointmentsLoading ? (
+                  <Card className="p-8 text-sm text-slate-500">Carregando agendamentos...</Card>
+                ) : appointmentsData.length === 0 ? (
                   <Card className="p-8">
-                    <Empty label="Nenhuma consulta encontrada." />
+                    <Empty label="Nenhum agendamento encontrado." />
                   </Card>
                 ) : (
-                  appointments.map((item: AnyRecord) => (
+                  appointmentsData.map((item: AnyRecord) => (
                     <Card key={item._id} className="p-5">
                       <div className="flex flex-wrap items-start gap-4">
                         <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center text-violet-700 font-bold flex-shrink-0">
@@ -379,12 +471,35 @@ export default function DoctorPage() {
                   ))
                 )}
               </div>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500">
+                <span>
+                  Página {appointmentsMeta.page} de {appointmentsMeta.totalPages} · {appointmentsMeta.total} registros
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={appointmentsMeta.page <= 1 || appointmentsLoading}
+                    onClick={() => loadAppointments(Math.max(1, appointmentsMeta.page - 1))}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={appointmentsMeta.page >= appointmentsMeta.totalPages || appointmentsLoading}
+                    onClick={() => loadAppointments(Math.min(appointmentsMeta.totalPages, appointmentsMeta.page + 1))}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
           {active === "schedule" && (
             <div>
-              <PageHeader title="Agenda" sub="Dias de atendimento, bloqueios e horarios" />
+              <PageHeader title="Agenda" sub="Dias de atendimento, bloqueios e horários" />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="p-6 space-y-6">
                   <div>
@@ -435,7 +550,7 @@ export default function DoctorPage() {
                     </label>
                   </div>
                   <label className="block">
-                    <span className="text-sm font-medium text-slate-700">Duracao da consulta</span>
+                    <span className="text-sm font-medium text-slate-700">Duração do atendimento</span>
                     <Input
                       type="number"
                       value={scheduleForm.slotDuration}
@@ -494,17 +609,17 @@ export default function DoctorPage() {
 
           {active === "profile" && (
             <div>
-              <PageHeader title="Perfil do medico" sub="Atualize foto, biografia e contato do seu cadastro" />
+              <PageHeader title="Perfil do barbeiro" sub="Atualize foto, biografia e contato do seu cadastro" />
               <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
                 <Card className="p-6 space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="h-16 w-16 overflow-hidden rounded-2xl bg-slate-100 flex items-center justify-center flex-shrink-0">
                       {profileForm.photoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={profileForm.photoUrl} alt={data?.doctor?.name || "Medico"} className="h-full w-full object-cover" />
+                        <img src={profileForm.photoUrl} alt={data?.doctor?.name || "Barbeiro"} className="h-full w-full object-cover" />
                       ) : (
                         <div className="h-full w-full bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold">
-                          {(data?.doctor?.name || "MD")
+                          {(data?.doctor?.name || "BB")
                             .split(" ")
                             .filter(Boolean)
                             .slice(0, 2)
@@ -571,9 +686,9 @@ export default function DoctorPage() {
           )}
 
           {notesModal && (
-            <Modal title="Observacoes da consulta" onClose={() => setNotesModal(null)}>
+            <Modal title="Observações do agendamento" onClose={() => setNotesModal(null)}>
               <p className="text-sm text-slate-500 mb-3">
-                Paciente: <strong className="text-slate-800">{resolveName(notesModal.patientId)}</strong>
+                Cliente: <strong className="text-slate-800">{resolveName(notesModal.patientId)}</strong>
               </p>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anotacoes clinicas" rows={5} />
               <div className="flex gap-3 justify-end mt-4">

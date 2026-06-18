@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
-import { removeLegacyPatientCpfIndex } from "@/lib/mongodb";
 import { getSessionUser } from "@/lib/guards";
-import Patient from "@/models/Patient";
+import Client from "@/models/Patient";
 import User from "@/models/User";
 import { hashPassword } from "@/lib/auth";
 
@@ -15,8 +14,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   await connectMongo();
-  const patients = await Patient.find().lean();
-  return NextResponse.json({ patients });
+  const clients = await Client.find().select("name email phone address birthDate active createdAt").sort({ name: 1 }).lean();
+  return NextResponse.json({ clients, patients: clients });
 }
 
 export async function POST(req: NextRequest) {
@@ -26,7 +25,6 @@ export async function POST(req: NextRequest) {
   }
 
   await connectMongo();
-  await removeLegacyPatientCpfIndex();
   const body = await req.json().catch(() => null);
   if (!body?.name || !body?.email) {
     return NextResponse.json({ error: "Nome e e-mail são obrigatórios." }, { status: 400 });
@@ -41,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "E-mail já cadastrado." }, { status: 409 });
   }
 
-  const patient = await Patient.create({
+  const client = await Client.create({
     name: body.name,
     email: String(body.email).toLowerCase(),
     phone: body.phone || "",
@@ -55,13 +53,13 @@ export async function POST(req: NextRequest) {
     name: body.name,
     email: String(body.email).toLowerCase(),
     passwordHash,
-    role: "PACIENTE",
-    patientId: patient._id,
+    role: "CLIENTE",
+    clientId: client._id,
   });
 
-  patient.userId = user._id;
-  patient.email = user.email;
-  await patient.save();
+  client.userId = user._id;
+  client.email = user.email;
+  await client.save();
 
-  return NextResponse.json({ patient, user }, { status: 201 });
+  return NextResponse.json({ client, patient: client, user }, { status: 201 });
 }

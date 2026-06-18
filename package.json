@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
-    "start": "next start"
+    "dev": "node scripts/dev-server.mjs",
+    "start": "next start",
+    "worker:reminders": "node scripts/reminder-worker.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

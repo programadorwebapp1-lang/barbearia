@@ -27,8 +27,8 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
   }
 
-  if (user.role === "PACIENTE") {
-    return NextResponse.json({ error: "Não é permitido alterar senha de pacientes por esta tela." }, { status: 403 });
+  if (user.role === "CLIENTE") {
+    return NextResponse.json({ error: "Não é permitido alterar senha de clientes por esta tela." }, { status: 403 });
   }
 
   if (user.role === "ADMIN" && user._id.toString() !== session.id) {

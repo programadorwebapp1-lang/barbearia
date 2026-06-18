@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   }
 
   await connectMongo();
-  const users = await User.find({ role: { $in: ["ADMIN", "MEDICO"] } })
-    .select("name email role active doctorId patientId createdAt")
+  const users = await User.find({ role: { $in: ["ADMIN", "BARBEIRO", "CLIENTE"] } })
+    .select("name email role active barberId clientId createdAt")
     .sort({ role: 1, name: 1 })
     .lean();
   return NextResponse.json({ users });

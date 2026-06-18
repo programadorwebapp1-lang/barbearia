@@ -1,14 +1,16 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-const SpecialtySchema = new Schema(
+const ServiceSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, unique: true },
     description: { type: String, default: "" },
+    price: { type: Number, required: true, min: 0 },
+    durationMinutes: { type: Number, required: true, min: 5, default: 30 },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-export type Specialty = InferSchemaType<typeof SpecialtySchema>;
+export type Service = InferSchemaType<typeof ServiceSchema>;
 
-export default models.Specialty || model("Specialty", SpecialtySchema);
+export default models.Service || model("Service", ServiceSchema);

@@ -1,6 +1,6 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
 
-const PatientSchema = new Schema(
+const ClientSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     name: { type: String, required: true, trim: true },
@@ -13,6 +13,9 @@ const PatientSchema = new Schema(
   { timestamps: true }
 );
 
-export type Patient = InferSchemaType<typeof PatientSchema>;
+ClientSchema.index({ email: 1 });
+ClientSchema.index({ active: 1 });
 
-export default models.Patient || model("Patient", PatientSchema);
+export type Client = InferSchemaType<typeof ClientSchema>;
+
+export default models.Client || model("Client", ClientSchema);

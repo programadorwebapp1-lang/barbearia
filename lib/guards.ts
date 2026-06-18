@@ -17,11 +17,11 @@ export async function getSessionUser(req: NextRequest) {
     role: user.role as SessionRole,
     name: user.name,
     email: user.email,
-    doctorId: user.doctorId?.toString?.() ?? session.doctorId ?? null,
-    patientId: user.patientId?.toString?.() ?? session.patientId ?? null,
+    barberId: user.barberId?.toString?.() ?? session.barberId ?? null,
+    clientId: user.clientId?.toString?.() ?? session.clientId ?? null,
   } satisfies SessionUser;
 }
 
 export function roleHome(role: SessionRole) {
-  return role === "ADMIN" ? "/admin" : role === "MEDICO" ? "/medico" : "/paciente";
+  return role === "ADMIN" ? "/admin" : role === "BARBEIRO" ? "/barbeiro" : "/cliente";
 }
